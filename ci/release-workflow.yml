@@ -1,0 +1,113 @@
+name: Build and Release
+
+# Builds AutoTyper.exe on a real Windows runner and attaches it to a GitHub
+# Release. A Windows executable cannot be cross-compiled from Linux/macOS,
+# so the build job must run on windows-latest.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish the release under (e.g. v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest
+      - name: Run unit tests
+        run: python -m pytest tests -q
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Build executable
+        run: |
+          python -m PyInstaller --noconfirm --onefile --windowed --name AutoTyper `
+            --hidden-import pynput.keyboard._win32 `
+            --hidden-import pynput.mouse._win32 `
+            main.py
+
+      - name: Verify the executable was produced
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path "dist/AutoTyper.exe")) {
+            Write-Error "dist/AutoTyper.exe was not created"
+            exit 1
+          }
+          $size = (Get-Item "dist/AutoTyper.exe").Length
+          Write-Host "Built AutoTyper.exe ($([math]::Round($size/1MB,2)) MB)"
+          if ($size -lt 1MB) {
+            Write-Error "Executable looks too small to be valid"
+            exit 1
+          }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoTyper-windows
+          path: dist/AutoTyper.exe
+
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release with the .exe attached
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: AutoTyper ${{ steps.tag.outputs.value }}
+          files: dist/AutoTyper.exe
+          generate_release_notes: true
+          body: |
+            ## AutoTyper ${{ steps.tag.outputs.value }}
+
+            Download **AutoTyper.exe** below and double-click it. No Python
+            installation is required — everything is bundled.
+
+            ### How to use
+            1. Launch `AutoTyper.exe`.
+            2. Set the message **length**, tick the **character types**, and set
+               the **interval** (2 seconds by default).
+            3. Click **Start**, then click into your Notepad / to-do window
+               during the countdown so it has keyboard focus.
+            4. The app types a string, presses Enter, waits, and repeats.
+            5. Press **Stop**, or hit **F8** from any window, to end it.
+
+            ### Note on antivirus
+            Windows SmartScreen or antivirus may warn about this file. It is an
+            unsigned PyInstaller build that simulates keystrokes, which triggers
+            heuristic detection. The build is produced by the public workflow in
+            `.github/workflows/release.yml` on a GitHub-hosted Windows runner.
+            You can always run from source instead.

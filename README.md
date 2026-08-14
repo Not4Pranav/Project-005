@@ -6,6 +6,16 @@ configurable interval (default **2 seconds**), and repeats until you stop it.
 
 The message can be random text of any length, or a fixed string you supply.
 
+## Download
+
+Grab the ready-to-run **`AutoTyper.exe`** from the
+[latest release](https://github.com/Not4Pranav/Project-005/releases/latest).
+No Python installation is needed — everything is bundled into the one file.
+
+Windows SmartScreen may warn about the download because the build is unsigned
+and simulates keystrokes. It is produced on a GitHub-hosted Windows runner by
+the public workflow in `.github/workflows/release.yml`.
+
 ## Features
 
 - Types into any focused window; no integration needed with the target app
@@ -36,6 +46,20 @@ pyinstaller --onefile --windowed --name AutoTyper main.py
 
 The executable is written to **`dist\AutoTyper.exe`** and needs no Python
 installed to run.
+
+### Automated releases
+
+Pushing a tag that starts with `v` builds the executable on a Windows runner and
+attaches it to a GitHub Release automatically:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The same workflow can be run on demand from the **Actions** tab via
+**Build and Release → Run workflow**. A Windows `.exe` cannot be cross-compiled
+from Linux or macOS, which is why the build job runs on `windows-latest`.
 
 ## How to use it
 
@@ -71,6 +95,7 @@ autotyper/keyboard_backend.py  pynput keystrokes + global F8 hotkey
 autotyper/app.py            Tkinter user interface
 tests/test_core.py          Unit tests for the core logic
 build_exe.bat               One-click Windows build
+.github/workflows/release.yml  CI: test, build .exe on Windows, publish release
 ```
 
 The typing logic is kept separate from the GUI and from the OS keyboard layer,
