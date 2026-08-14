@@ -9,14 +9,14 @@ stop it.
 
 ## Easiest way to run it
 
-1. Download this project (green **Code → Download ZIP**, then unzip).
-2. Double-click **`AutoTyper.bat`**.
+**Download the project → double-click `AutoTyper.bat`.** That's the whole setup.
 
-That's it. The app uses Python's built-in `ctypes` module to talk to Windows
-directly, so there is nothing to `pip install`. If Windows doesn't have Python
-at all, the launcher tells you where to get it.
+There is nothing to install: the app talks to Windows directly through Python's
+built-in `ctypes`, so no `pip install` is needed and it never touches the
+network. If Python itself isn't on the PC, the launcher points you to
+python.org and tells you which box to tick.
 
-Prefer a single `.exe`? Run **`build_exe.bat`** once and you'll get
+Prefer a single `.exe`? Run **`build_exe.bat`** once to get
 `dist\AutoTyper.exe`, a standalone file you can copy anywhere.
 
 ## What you can configure

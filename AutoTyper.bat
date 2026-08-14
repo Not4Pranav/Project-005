@@ -1,24 +1,38 @@
 @echo off
-REM ---------------------------------------------------------------
-REM  Double-click this file to run AutoTyper.
-REM  No installation, no downloads - uses the Python already on your PC.
-REM ---------------------------------------------------------------
+REM ===============================================================
+REM   AutoTyper - just double-click this file.
+REM   No installation, no downloads, works offline.
+REM ===============================================================
+setlocal
 cd /d "%~dp0"
 
-REM Prefer the py launcher, fall back to python on PATH.
-where py >nul 2>&1 && (
-    start "" pyw main.py
+REM pyw.exe / pythonw.exe launch without a black console window.
+where pyw >nul 2>&1
+if %errorlevel%==0 (
+    start "AutoTyper" pyw "%~dp0main.py"
     exit /b 0
 )
-where python >nul 2>&1 && (
-    start "" pythonw main.py
+
+where pythonw >nul 2>&1
+if %errorlevel%==0 (
+    start "AutoTyper" pythonw "%~dp0main.py"
+    exit /b 0
+)
+
+REM Fall back to console Python so any error stays visible.
+where python >nul 2>&1
+if %errorlevel%==0 (
+    python "%~dp0main.py"
+    if errorlevel 1 pause
     exit /b 0
 )
 
 echo.
-echo Python was not found on this computer.
+echo   Python was not found on this computer.
 echo.
-echo Install it from https://www.python.org/downloads/
-echo (tick "Add python.exe to PATH" during setup), then run this file again.
+echo   1. Go to  https://www.python.org/downloads/
+echo   2. Run the installer and TICK "Add python.exe to PATH"
+echo   3. Double-click AutoTyper.bat again
 echo.
 pause
+exit /b 1
