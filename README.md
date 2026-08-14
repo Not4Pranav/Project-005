@@ -14,7 +14,7 @@ No Python installation is needed — everything is bundled into the one file.
 
 Windows SmartScreen may warn about the download because the build is unsigned
 and simulates keystrokes. It is produced on a GitHub-hosted Windows runner by
-the public workflow in `.github/workflows/release.yml`.
+the public release workflow (`ci/release-workflow.yml`, see `ci/README.md`).
 
 ## Features
 
@@ -57,7 +57,8 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The same workflow can be run on demand from the **Actions** tab via
+Once `ci/release-workflow.yml` is moved to `.github/workflows/` (see `ci/README.md`),
+the same workflow can also be run on demand from the **Actions** tab via
 **Build and Release → Run workflow**. A Windows `.exe` cannot be cross-compiled
 from Linux or macOS, which is why the build job runs on `windows-latest`.
 
@@ -95,7 +96,7 @@ autotyper/keyboard_backend.py  pynput keystrokes + global F8 hotkey
 autotyper/app.py            Tkinter user interface
 tests/test_core.py          Unit tests for the core logic
 build_exe.bat               One-click Windows build
-.github/workflows/release.yml  CI: test, build .exe on Windows, publish release
+ci/release-workflow.yml     CI: test, build .exe on Windows, publish release
 ```
 
 The typing logic is kept separate from the GUI and from the OS keyboard layer,
