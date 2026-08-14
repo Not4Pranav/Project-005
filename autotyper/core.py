@@ -46,6 +46,7 @@ class TypingConfig:
     start_delay: float = 5.0       # seconds before the first message
     repeat_limit: int = 0          # 0 == unlimited
     press_enter: bool = True
+    per_char_delay: float = 0.0    # 0 == whole string at once (fastest)
 
     use_lowercase: bool = True
     use_uppercase: bool = False
@@ -87,6 +88,10 @@ class TypingConfig:
             raise ValueError("Start delay cannot be negative.")
         if self.repeat_limit < 0:
             raise ValueError("Repeat count cannot be negative.")
+        if self.per_char_delay < 0:
+            raise ValueError("Typing speed delay cannot be negative.")
+        if self.per_char_delay > 1.0:
+            raise ValueError("Typing speed delay must be 1 second or less.")
 
 
 def build_message(config: TypingConfig, counter: int, rng: Optional[random.Random] = None) -> str:

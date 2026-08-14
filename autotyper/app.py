@@ -6,8 +6,9 @@ import queue
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from autotyper import backends
 from autotyper.core import MIN_INTERVAL, TypingConfig, TypingWorker, build_message
-from autotyper.keyboard_backend import PYNPUT_AVAILABLE, HotkeyListener, PynputTypist
+from autotyper.settings import load_settings, save_settings
 
 APP_TITLE = "AutoTyper - repeating message sender"
 STOP_KEY = "f8"
@@ -24,17 +25,23 @@ class AutoTyperApp(ttk.Frame):
         self.events: queue.Queue = queue.Queue()
 
         self._build_vars()
+        self.apply_settings(load_settings())
         self._build_ui()
 
-        self.hotkey = HotkeyListener(self.request_stop, STOP_KEY)
-        self.hotkey.start()
+        self.hotkey = backends.create_hotkey(self.request_stop, STOP_KEY)
+        self.hotkey_ok = bool(self.hotkey and self.hotkey.start())
 
         self.master.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(60, self._drain_events)
 
-        if not PYNPUT_AVAILABLE:
-            self.set_status("pynput missing - run: pip install -r requirements.txt")
+        if not backends.is_available():
+            self.set_status(
+                "No keystroke backend available. On Linux/macOS: pip install pynput"
+            )
             self.start_btn.state(["disabled"])
+        else:
+            hint = "" if self.hotkey_ok else "  (F8 hotkey unavailable)"
+            self.set_status(f"Ready - using {backends.backend_name()}.{hint}")
 
     # -- state -------------------------------------------------------------- #
 
@@ -44,6 +51,7 @@ class AutoTyperApp(ttk.Frame):
         self.v_delay = tk.StringVar(value="5")
         self.v_repeat = tk.StringVar(value="0")
         self.v_enter = tk.BooleanVar(value=True)
+        self.v_charspeed = tk.StringVar(value="0")
 
         self.v_lower = tk.BooleanVar(value=True)
         self.v_upper = tk.BooleanVar(value=False)
@@ -58,6 +66,25 @@ class AutoTyperApp(ttk.Frame):
 
         self.v_status = tk.StringVar(value="Ready")
         self.v_sent = tk.StringVar(value="Sent: 0")
+
+    _SETTING_VARS = (
+        ("length", "v_length"), ("interval", "v_interval"), ("delay", "v_delay"),
+        ("repeat", "v_repeat"), ("charspeed", "v_charspeed"), ("fixed", "v_fixed"),
+        ("prefix", "v_prefix"), ("suffix", "v_suffix"), ("enter", "v_enter"),
+        ("lower", "v_lower"), ("upper", "v_upper"), ("digits", "v_digits"),
+        ("symbols", "v_symbols"), ("space", "v_space"), ("counter", "v_counter"),
+    )
+
+    def collect_settings(self) -> dict:
+        return {key: getattr(self, attr).get() for key, attr in self._SETTING_VARS}
+
+    def apply_settings(self, data: dict) -> None:
+        for key, attr in self._SETTING_VARS:
+            if key in data:
+                try:
+                    getattr(self, attr).set(data[key])
+                except Exception:
+                    pass
 
     # -- layout ------------------------------------------------------------- #
 
@@ -124,9 +151,16 @@ class AutoTyperApp(ttk.Frame):
         ttk.Spinbox(
             timing, from_=0, to=1000000, width=8, textvariable=self.v_repeat
         ).grid(row=2, column=1, sticky="w", padx=6, pady=(6, 0))
+        ttk.Label(timing, text="Typing speed (sec per character, 0 = instant)").grid(
+            row=3, column=0, sticky="w", pady=(6, 0)
+        )
+        ttk.Spinbox(
+            timing, from_=0, to=1, increment=0.01, width=8,
+            textvariable=self.v_charspeed,
+        ).grid(row=3, column=1, sticky="w", padx=6, pady=(6, 0))
         ttk.Checkbutton(
             timing, text="Press Enter after each message", variable=self.v_enter
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(6, 0))
         row += 1
 
         preview = ttk.LabelFrame(self, text="Preview", padding=8)
@@ -184,6 +218,7 @@ class AutoTyperApp(ttk.Frame):
             start_delay=as_float(self.v_delay, "Start delay"),
             repeat_limit=as_int(self.v_repeat, "Repeat count"),
             press_enter=self.v_enter.get(),
+            per_char_delay=as_float(self.v_charspeed, "Typing speed"),
             use_lowercase=self.v_lower.get(),
             use_uppercase=self.v_upper.get(),
             use_digits=self.v_digits.get(),
@@ -215,7 +250,7 @@ class AutoTyperApp(ttk.Frame):
             return
         try:
             cfg = self.read_config()
-            typist = PynputTypist()
+            typist = backends.create_typist(per_char_delay=cfg.per_char_delay)
         except Exception as exc:
             messagebox.showerror("Cannot start", str(exc))
             return
@@ -257,7 +292,12 @@ class AutoTyperApp(ttk.Frame):
         if self.worker is not None:
             self.worker.stop()
             self.worker.join(timeout=1.0)
-        self.hotkey.stop()
+        if self.hotkey is not None:
+            self.hotkey.stop()
+        try:
+            save_settings(self.collect_settings())
+        except Exception:
+            pass
         self.master.destroy()
 
 

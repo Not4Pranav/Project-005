@@ -1,23 +1,26 @@
 @echo off
-REM Build AutoTyper.exe (single file, no console window).
+REM Build a standalone AutoTyper.exe. Requires internet only for PyInstaller.
 setlocal
-echo Installing build dependencies...
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt || goto :error
+cd /d "%~dp0"
 
-echo Building executable...
-python -m PyInstaller --noconfirm --onefile --windowed --name AutoTyper ^
-    --hidden-import pynput.keyboard._win32 ^
-    --hidden-import pynput.mouse._win32 ^
-    main.py || goto :error
+echo Installing PyInstaller...
+python -m pip install --upgrade pip
+python -m pip install pyinstaller || goto :error
 
 echo.
-echo Done. Your executable is at: dist\AutoTyper.exe
+echo Building AutoTyper.exe ...
+python -m PyInstaller --noconfirm --onefile --windowed --name AutoTyper main.py || goto :error
+
+echo.
+echo ============================================
+echo  Done!  Your app:  dist\AutoTyper.exe
+echo  Copy that single file anywhere and run it.
+echo ============================================
 pause
 exit /b 0
 
 :error
 echo.
-echo Build failed. See the messages above.
+echo Build failed - see the messages above.
 pause
 exit /b 1

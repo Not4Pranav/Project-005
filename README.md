@@ -1,118 +1,105 @@
 # AutoTyper
 
-A small desktop app that types a message into **whatever window you have focused**
-— Notepad, a to-do list, a chat box, anything — then presses **Enter**, waits a
-configurable interval (default **2 seconds**), and repeats until you stop it.
+A small, fast, **fully offline** desktop app that types a message into whatever
+window you have focused — Notepad, a to-do list, a chat box — presses **Enter**,
+waits a configurable interval (default **2 seconds**), and repeats until you
+stop it.
 
-The message can be random text of any length, or a fixed string you supply.
+**No installation. No downloads. No dependencies on Windows.**
 
-## Download
+## Easiest way to run it
 
-Grab the ready-to-run **`AutoTyper.exe`** from the
-[latest release](https://github.com/Not4Pranav/Project-005/releases/latest).
-No Python installation is needed — everything is bundled into the one file.
+1. Download this project (green **Code → Download ZIP**, then unzip).
+2. Double-click **`AutoTyper.bat`**.
 
-Windows SmartScreen may warn about the download because the build is unsigned
-and simulates keystrokes. It is produced on a GitHub-hosted Windows runner by
-the public release workflow (`ci/release-workflow.yml`, see `ci/README.md`).
+That's it. The app uses Python's built-in `ctypes` module to talk to Windows
+directly, so there is nothing to `pip install`. If Windows doesn't have Python
+at all, the launcher tells you where to get it.
 
-## Features
+Prefer a single `.exe`? Run **`build_exe.bat`** once and you'll get
+`dist\AutoTyper.exe`, a standalone file you can copy anywhere.
 
-- Types into any focused window; no integration needed with the target app
-- **Interval** between messages (default 2 s) and a **start delay** so you have time to click your Notepad window
-- **Length** of the generated string is fully configurable
-- Pick which characters to use: `a-z`, `A-Z`, `0-9`, symbols, space
-- Or send **fixed text** instead of random, with optional **prefix**, **suffix** and an auto-incrementing **counter** (`#1`, `#2`, ...)
-- **Press Enter** after each message can be toggled off
-- **Repeat count** limit, or 0 for unlimited
-- **Start / Stop** buttons plus a global **F8** hotkey that stops it from anywhere
-- Live preview of exactly what will be typed
+## What you can configure
 
-## Quick start (run from source)
+| Setting | What it does |
+| --- | --- |
+| **Length** | Number of characters in each random message |
+| **Characters** | Which pools to draw from: `a-z`, `A-Z`, `0-9`, symbols, space |
+| **Fixed text** | Send this exact text instead of a random string |
+| **Prefix / Suffix** | Wrapped around the message body |
+| **Append counter** | Adds ` #1`, ` #2`, ... to each message |
+| **Interval** | Seconds between messages (default 2, minimum 0.05) |
+| **Typing speed** | Seconds per character — `0` types the whole string instantly |
+| **Start delay** | Seconds before the first message, so you can switch windows |
+| **Repeat count** | Stop after N messages, or `0` for unlimited |
+| **Press Enter** | Whether Enter is pressed after each message |
 
-```bash
-pip install -r requirements.txt
-python main.py
-```
-
-## Build a standalone .exe (Windows)
-
-Double-click **`build_exe.bat`**, or run:
-
-```bat
-pip install -r requirements-dev.txt
-pyinstaller --onefile --windowed --name AutoTyper main.py
-```
-
-The executable is written to **`dist\AutoTyper.exe`** and needs no Python
-installed to run.
-
-### Automated releases
-
-Pushing a tag that starts with `v` builds the executable on a Windows runner and
-attaches it to a GitHub Release automatically:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-Once `ci/release-workflow.yml` is moved to `.github/workflows/` (see `ci/README.md`),
-the same workflow can also be run on demand from the **Actions** tab via
-**Build and Release → Run workflow**. A Windows `.exe` cannot be cross-compiled
-from Linux or macOS, which is why the build job runs on `windows-latest`.
+Your settings are saved automatically and restored the next time you open the
+app.
 
 ## How to use it
 
 1. Launch the app.
-2. Set the **length**, tick the **character types** you want, and set the
-   **interval** (2 seconds by default).
+2. Set the length, characters, interval and typing speed you want. The
+   **Preview** box shows exactly what will be typed.
 3. Click **Start**.
-4. During the start-delay countdown, click into your **Notepad / to-do list**
-   window so it has keyboard focus.
-5. The app types a string, presses Enter, and repeats.
-6. Press **Stop** in the app, or hit **F8** from any window, to end it.
+4. During the countdown, click into your **Notepad / to-do list** window so it
+   has keyboard focus.
+5. The app types a string, presses Enter, waits, and repeats.
+6. Press **Stop**, or hit **F8** from any window, to end it.
 
-## Settings reference
+## Speed and offline behaviour
 
-| Setting | Meaning |
-| --- | --- |
-| Length | Number of characters in each random message |
-| Fixed text | If set, this exact text is sent instead of a random string |
-| Prefix / Suffix | Wrapped around the message body |
-| Append counter | Adds ` #1`, ` #2`, ... to each message |
-| Characters | Which pools random characters are drawn from |
-| Interval | Seconds between messages (minimum 0.05) |
-| Start delay | Seconds before the first message, to switch windows |
-| Repeat count | Stop after N messages; 0 means unlimited |
-| Press Enter | Whether Enter is pressed after each message |
+- **Offline:** the app makes no network calls of any kind.
+- **Fast typing:** on Windows the entire string is delivered in a single
+  `SendInput` call, so even long messages appear instantly. Set *typing speed*
+  above 0 only if you want a visible human-like keystroke effect.
+- **Responsive UI:** typing runs on a background thread, so the window never
+  freezes and **Stop** reacts immediately.
+- **Any character:** keystrokes are sent as Unicode, so symbols and accented
+  characters work regardless of your keyboard layout.
 
 ## Project layout
 
 ```
-main.py                     Launcher
+AutoTyper.bat               Double-click launcher (no setup)
+build_exe.bat               Build a standalone dist\AutoTyper.exe
+main.py                     Entry point
 autotyper/core.py           Config, message generation, timing loop (no GUI)
-autotyper/keyboard_backend.py  pynput keystrokes + global F8 hotkey
+autotyper/win_input.py      Native Windows keystrokes via ctypes (no packages)
+autotyper/keyboard_backend.py  Optional pynput backend for Linux/macOS
+autotyper/backends.py       Picks the best available backend
+autotyper/settings.py       Saves your configuration between runs
 autotyper/app.py            Tkinter user interface
-tests/test_core.py          Unit tests for the core logic
-build_exe.bat               One-click Windows build
-ci/release-workflow.yml     CI: test, build .exe on Windows, publish release
+tests/                      Unit tests
+ci/release-workflow.yml     Optional CI to publish a prebuilt .exe
 ```
 
-The typing logic is kept separate from the GUI and from the OS keyboard layer,
-so it can be tested without a display:
+## Running on Linux or macOS
+
+The core app is cross-platform, but sending keystrokes needs a helper there:
 
 ```bash
-pip install -r requirements-dev.txt
-pytest -q
+pip install pynput
+python main.py
 ```
+
+## Tests
+
+```bash
+pip install pytest
+python -m pytest tests -q
+```
+
+20 tests cover message generation, character-set selection, validation, the
+timing loop, the Windows event encoding, and the settings round-trip.
 
 ## Notes
 
 - The app types into the **focused** window, so don't click elsewhere while it
-  is running, or the text will go to whichever window you moved to. F8 stops it
-  immediately.
-- Some antivirus tools flag PyInstaller executables that simulate keystrokes.
-  This is a false positive; you can always run from source instead.
-- Use it against apps you control. Automated repeated messages may violate the
+  runs. **F8** stops it instantly from anywhere.
+- A self-built `.exe` may trigger a SmartScreen or antivirus warning, because
+  unsigned executables that simulate keystrokes match generic heuristics. This
+  is a false positive. Running `AutoTyper.bat` avoids the issue entirely.
+- Use it against apps you control; automated repeat messages may breach the
   terms of service of chat platforms.

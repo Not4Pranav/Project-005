@@ -1,1 +1,5 @@
-pynput>=1.7.6
+# No dependencies are required on Windows - AutoTyper uses the built-in
+# ctypes module to talk to the Win32 API directly.
+#
+# Only needed to run on Linux or macOS:
+# pynput>=1.7.6

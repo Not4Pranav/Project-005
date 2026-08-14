@@ -1,3 +1,6 @@
--r requirements.txt
+# Development / packaging extras
 pyinstaller>=6.0
 pytest>=7.0
+
+# Only needed to run the app on Linux or macOS
+pynput>=1.7.6
