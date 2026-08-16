@@ -182,7 +182,7 @@ class TypingWorker:
                 remaining = cfg.start_delay
                 while remaining > 0:
                     self.on_status(
-                        f"Starting in {remaining:.0f}s - click your Notepad window now"
+                        f"Starting in {remaining:.0f}s - click your target text field now"
                     )
                     step = min(1.0, remaining)
                     if not self._sleep(step):

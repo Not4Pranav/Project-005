@@ -43,8 +43,8 @@ app.
 2. Set the length, characters, interval and typing speed you want. The
    **Preview** box shows exactly what will be typed.
 3. Click **Start**.
-4. During the countdown, click into your **Notepad / to-do list** window so it
-   has keyboard focus.
+4. During the countdown, click directly into an editable field in your
+   **Notepad, to-do list, or other app** so the caret is visible there.
 5. The app types a string, presses Enter, waits, and repeats.
 6. Press **Stop**, or hit **F8** from any window, to end it.
 
@@ -91,13 +91,26 @@ pip install pytest
 python -m pytest tests -q
 ```
 
-20 tests cover message generation, character-set selection, validation, the
-timing loop, the Windows event encoding, and the settings round-trip.
+24 tests cover message generation, character-set selection, validation, the
+timing loop, the Windows event encoding and ABI layout, and the settings
+round-trip.
+
+## Troubleshooting
+
+- AutoTyper sends normal Windows keyboard input to the **currently focused
+  editable field**. Click inside the field during the countdown; merely bringing
+  the app window to the front is not enough.
+- Windows prevents a normal app from injecting input into an app launched with
+  **Run as administrator**. Run both apps normally (recommended), or run both at
+  the same permission level.
+- If a custom field cannot keep up with instant input, set **Typing speed** to
+  `0.01` or `0.02` seconds per character.
 
 ## Notes
 
-- The app types into the **focused** window, so don't click elsewhere while it
-  runs. **F8** stops it instantly from anywhere.
+- The app works with standard text fields in Notepad, to-do lists, browsers, and
+  custom desktop apps. It always types into whichever field has focus, so don't
+  click elsewhere while it runs. **F8** stops it instantly from anywhere.
 - A self-built `.exe` may trigger a SmartScreen or antivirus warning, because
   unsigned executables that simulate keystrokes match generic heuristics. This
   is a false positive. Running `AutoTyper.bat` avoids the issue entirely.
