@@ -35,25 +35,60 @@ VK_F8 = 0x77
 WM_HOTKEY = 0x0312
 MOD_NOREPEAT = 0x4000
 
-ULONG_PTR = ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
+# Keep these aliases fixed-width.  On Windows they match the corresponding C
+# types; fixed widths also let the structure layout be tested on other hosts.
+WORD = ctypes.c_uint16
+DWORD = ctypes.c_uint32
+LONG = ctypes.c_int32
+ULONG_PTR = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_uint32
 
 
-class KEYBDINPUT(ctypes.Structure):
+class MOUSEINPUT(ctypes.Structure):
     _fields_ = [
-        ("wVk", wintypes.WORD),
-        ("wScan", wintypes.WORD),
-        ("dwFlags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
+        ("dx", LONG),
+        ("dy", LONG),
+        ("mouseData", DWORD),
+        ("dwFlags", DWORD),
+        ("time", DWORD),
         ("dwExtraInfo", ULONG_PTR),
     ]
 
 
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ("wVk", WORD),
+        ("wScan", WORD),
+        ("dwFlags", DWORD),
+        ("time", DWORD),
+        ("dwExtraInfo", ULONG_PTR),
+    ]
+
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", DWORD),
+        ("wParamL", WORD),
+        ("wParamH", WORD),
+    ]
+
+
 class _INPUTunion(ctypes.Union):
-    _fields_ = [("ki", KEYBDINPUT)]
+    # INPUT's union must contain its largest member even though AutoTyper only
+    # creates keyboard events.  Omitting MOUSEINPUT makes INPUT too small
+    # (32 instead of 40 bytes on 64-bit Windows), and SendInput then fails with
+    # ERROR_INVALID_PARAMETER / WinError 87 before sending a single key.
+    _fields_ = [
+        ("mi", MOUSEINPUT),
+        ("ki", KEYBDINPUT),
+        ("hi", HARDWAREINPUT),
+    ]
 
 
 class INPUT(ctypes.Structure):
-    _fields_ = [("type", wintypes.DWORD), ("union", _INPUTunion)]
+    _fields_ = [("type", DWORD), ("union", _INPUTunion)]
+
+
+EXPECTED_INPUT_SIZE = 40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28
 
 
 def _key_event(scan: int, flags: int, vk: int = 0) -> INPUT:
@@ -71,6 +106,11 @@ class WindowsTypist:
     def __init__(self, per_char_delay: float = 0.0) -> None:
         if not WINDOWS:
             raise RuntimeError("The native Windows backend requires Windows.")
+        if ctypes.sizeof(INPUT) != EXPECTED_INPUT_SIZE:
+            raise RuntimeError(
+                "Internal Windows INPUT structure has the wrong size "
+                f"({ctypes.sizeof(INPUT)}; expected {EXPECTED_INPUT_SIZE})."
+            )
         self._user32 = ctypes.WinDLL("user32", use_last_error=True)
         self._user32.SendInput.argtypes = (
             wintypes.UINT,
@@ -87,14 +127,26 @@ class WindowsTypist:
             return
         count = len(events)
         array = (INPUT * count)(*events)
+
+        # SendInput does not reliably set the last-error value when UIPI blocks
+        # input, so clear any stale value before the call.
+        set_last_error = getattr(ctypes, "set_last_error", None)
+        if set_last_error is not None:
+            set_last_error(0)
         sent = self._user32.SendInput(count, array, ctypes.sizeof(INPUT))
         if sent != count:
-            win_error = getattr(ctypes, "WinError", None)
-            if win_error is not None:
-                raise win_error(ctypes.get_last_error())
+            get_last_error = getattr(ctypes, "get_last_error", None)
+            error_code = get_last_error() if get_last_error is not None else 0
+            error_detail = ""
+            if error_code:
+                format_error = getattr(ctypes, "FormatError", None)
+                if format_error is not None:
+                    error_detail = f": {format_error(error_code).strip()}"
+                error_detail = f" (WinError {error_code}{error_detail})"
             raise RuntimeError(
-                f"SendInput sent {sent} of {count} events. Input may be blocked "
-                "by another application running as administrator."
+                f"Windows sent {sent} of {count} keyboard events{error_detail}. "
+                "Click an editable text field and try again. If the target app "
+                "is running as administrator, run AutoTyper at the same level."
             )
 
     @staticmethod
